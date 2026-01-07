@@ -1197,6 +1197,87 @@
             margin-top: 0.2rem;
         }
 
+        /* Intel Feed */
+        .intel-item {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .intel-item.priority {
+            border-left: 2px solid var(--red);
+            background: rgba(255, 68, 68, 0.05);
+        }
+
+        .intel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .intel-source {
+            font-size: 0.55rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .intel-tags {
+            display: flex;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+        }
+
+        .intel-tag {
+            font-size: 0.5rem;
+            padding: 0.1rem 0.35rem;
+            border-radius: 2px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .intel-tag.region {
+            background: #1a3a5a;
+            color: #6ab0ff;
+        }
+
+        .intel-tag.topic {
+            background: #3a2a4a;
+            color: #b090d0;
+        }
+
+        .intel-tag.osint {
+            background: #2a4a3a;
+            color: #60d090;
+        }
+
+        .intel-tag.govt {
+            background: #4a3a2a;
+            color: #d0a060;
+        }
+
+        .intel-title {
+            font-size: 0.75rem;
+            color: var(--text);
+            text-decoration: none;
+            display: block;
+            line-height: 1.4;
+        }
+
+        .intel-title:hover {
+            color: var(--accent);
+        }
+
+        .intel-meta {
+            font-size: 0.55rem;
+            color: var(--text-dim);
+            margin-top: 0.25rem;
+            display: flex;
+            gap: 0.75rem;
+        }
+
         /* Money Printer Gauge */
         .printer-gauge {
             padding: 1.5rem 1rem;
@@ -1550,6 +1631,17 @@
             </div>
         </section>
 
+        <!-- Intel Feed -->
+        <section class="panel wide" data-panel="intel">
+            <div class="panel-header">
+                <span class="panel-title">Intel Feed</span>
+                <span class="panel-count" id="intelCount">-</span>
+            </div>
+            <div class="panel-content" id="intelPanel">
+                <div class="loading-msg">Loading...</div>
+            </div>
+        </section>
+
     </main>
 
     <script>
@@ -1573,7 +1665,8 @@
             layoffs: { name: 'Layoffs Tracker', priority: 3 },
             venezuela: { name: 'Venezuela Situation', priority: 2 },
             greenland: { name: 'Greenland Situation', priority: 2 },
-            tbpn: { name: 'TBPN Live', priority: 1 }
+            tbpn: { name: 'TBPN Live', priority: 1 },
+            intel: { name: 'Intel Feed', priority: 2 }
         };
 
         // Load panel visibility from localStorage
@@ -1850,6 +1943,49 @@
                 { name: 'Treasury', url: 'https://home.treasury.gov/system/files/136/treasury-rss.xml' },
                 { name: 'State Dept', url: 'https://www.state.gov/rss-feed/press-releases/feed/' }
             ]
+        };
+
+        // Intelligence-focused news sources
+        const INTEL_SOURCES = [
+            // Think Tanks
+            { name: 'CSIS', url: 'https://www.csis.org/analysis/feed', type: 'think-tank', topics: ['defense', 'geopolitics'] },
+            { name: 'Brookings', url: 'https://www.brookings.edu/feed/', type: 'think-tank', topics: ['policy', 'geopolitics'] },
+            { name: 'CFR', url: 'https://www.cfr.org/rss.xml', type: 'think-tank', topics: ['foreign-policy'] },
+            // Defense/Security News
+            { name: 'Defense One', url: 'https://www.defenseone.com/rss/all/', type: 'defense', topics: ['military', 'defense'] },
+            { name: 'War on Rocks', url: 'https://warontherocks.com/feed/', type: 'defense', topics: ['military', 'strategy'] },
+            { name: 'Breaking Defense', url: 'https://breakingdefense.com/feed/', type: 'defense', topics: ['military', 'defense'] },
+            { name: 'The Drive War Zone', url: 'https://www.thedrive.com/the-war-zone/feed', type: 'defense', topics: ['military'] },
+            // Regional Specialists
+            { name: 'The Diplomat', url: 'https://thediplomat.com/feed/', type: 'regional', topics: ['asia-pacific'], region: 'APAC' },
+            { name: 'Al-Monitor', url: 'https://www.al-monitor.com/rss', type: 'regional', topics: ['middle-east'], region: 'MENA' },
+            // OSINT & Investigations
+            { name: 'Bellingcat', url: 'https://www.bellingcat.com/feed/', type: 'osint', topics: ['investigation', 'osint'] },
+            // Government/Official
+            { name: 'DoD News', url: 'https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?max=10&ContentType=1&Site=945', type: 'govt', topics: ['military', 'official'] },
+            { name: 'State Dept', url: 'https://www.state.gov/rss-feed/press-releases/feed/', type: 'govt', topics: ['diplomacy', 'official'] },
+            // Cyber/Security
+            { name: 'CISA Alerts', url: 'https://www.cisa.gov/uscert/ncas/alerts.xml', type: 'cyber', topics: ['cyber', 'security'] },
+            { name: 'Krebs Security', url: 'https://krebsonsecurity.com/feed/', type: 'cyber', topics: ['cyber', 'security'] }
+        ];
+
+        // Region detection keywords for tagging
+        const REGION_KEYWORDS = {
+            'EUROPE': ['nato', 'eu', 'european', 'ukraine', 'russia', 'germany', 'france', 'uk', 'britain', 'poland'],
+            'MENA': ['iran', 'israel', 'saudi', 'syria', 'iraq', 'gaza', 'lebanon', 'yemen', 'houthi', 'middle east'],
+            'APAC': ['china', 'taiwan', 'japan', 'korea', 'indo-pacific', 'south china sea', 'asean', 'philippines'],
+            'AMERICAS': ['us', 'america', 'canada', 'mexico', 'brazil', 'venezuela', 'latin'],
+            'AFRICA': ['africa', 'sahel', 'niger', 'sudan', 'ethiopia', 'somalia']
+        };
+
+        // Topic detection keywords
+        const TOPIC_KEYWORDS = {
+            'CYBER': ['cyber', 'hack', 'ransomware', 'malware', 'breach', 'apt', 'vulnerability'],
+            'NUCLEAR': ['nuclear', 'icbm', 'warhead', 'nonproliferation', 'uranium', 'plutonium'],
+            'CONFLICT': ['war', 'military', 'troops', 'invasion', 'strike', 'missile', 'combat', 'offensive'],
+            'INTEL': ['intelligence', 'espionage', 'spy', 'cia', 'mossad', 'fsb', 'covert'],
+            'DEFENSE': ['pentagon', 'dod', 'defense', 'military', 'army', 'navy', 'air force'],
+            'DIPLO': ['diplomat', 'embassy', 'treaty', 'sanctions', 'talks', 'summit', 'bilateral']
         };
 
         // Sector ETFs for heatmap
@@ -2956,6 +3092,150 @@
             }
         }
 
+        // Detect regions from text
+        function detectRegions(text) {
+            const lower = text.toLowerCase();
+            const regions = [];
+            for (const [region, keywords] of Object.entries(REGION_KEYWORDS)) {
+                if (keywords.some(kw => lower.includes(kw))) {
+                    regions.push(region);
+                }
+            }
+            return regions;
+        }
+
+        // Detect topics from text
+        function detectTopics(text) {
+            const lower = text.toLowerCase();
+            const topics = [];
+            for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
+                if (keywords.some(kw => lower.includes(kw))) {
+                    topics.push(topic);
+                }
+            }
+            return topics;
+        }
+
+        // Fetch Intel Feed from multiple sources
+        async function fetchIntelFeed() {
+            const results = await Promise.all(INTEL_SOURCES.map(async (source) => {
+                try {
+                    const text = await fetchWithProxy(source.url);
+                    const parser = new DOMParser();
+                    const xml = parser.parseFromString(text, 'text/xml');
+
+                    let items = xml.querySelectorAll('item');
+                    if (items.length === 0) items = xml.querySelectorAll('entry');
+
+                    return Array.from(items).slice(0, 3).map(item => {
+                        let link = '';
+                        const linkEl = item.querySelector('link');
+                        if (linkEl) link = linkEl.getAttribute('href') || linkEl.textContent || '';
+
+                        const title = item.querySelector('title')?.textContent?.trim() || 'No title';
+                        const pubDate = item.querySelector('pubDate')?.textContent ||
+                                       item.querySelector('published')?.textContent || '';
+
+                        // Detect regions and topics from title
+                        const detectedRegions = source.region ? [source.region] : detectRegions(title);
+                        const detectedTopics = detectTopics(title);
+
+                        // Priority flag for critical items
+                        const isPriority = ALERT_KEYWORDS.some(kw => title.toLowerCase().includes(kw));
+
+                        return {
+                            source: source.name,
+                            sourceType: source.type,
+                            title,
+                            link: link.trim(),
+                            pubDate,
+                            regions: detectedRegions,
+                            topics: detectedTopics,
+                            isPriority
+                        };
+                    });
+                } catch (e) {
+                    console.log(`Failed to fetch intel from ${source.name}`);
+                    return [];
+                }
+            }));
+
+            // Flatten and sort by date, priority items first
+            const allItems = results.flat();
+            allItems.sort((a, b) => {
+                if (a.isPriority && !b.isPriority) return -1;
+                if (!a.isPriority && b.isPriority) return 1;
+                return new Date(b.pubDate) - new Date(a.pubDate);
+            });
+
+            return allItems.slice(0, 25);
+        }
+
+        // Render Intel Feed panel
+        function renderIntelFeed(items) {
+            const panel = document.getElementById('intelPanel');
+            const count = document.getElementById('intelCount');
+
+            if (!items || items.length === 0) {
+                panel.innerHTML = '<div class="loading-msg">No intel available</div>';
+                count.textContent = '-';
+                return;
+            }
+
+            count.textContent = items.length;
+
+            panel.innerHTML = items.map(item => {
+                // Build tags HTML
+                let tagsHTML = '';
+
+                // Source type tag
+                if (item.sourceType === 'osint') {
+                    tagsHTML += '<span class="intel-tag osint">OSINT</span>';
+                } else if (item.sourceType === 'govt') {
+                    tagsHTML += '<span class="intel-tag govt">GOVT</span>';
+                }
+
+                // Region tags (max 2)
+                item.regions.slice(0, 2).forEach(r => {
+                    tagsHTML += `<span class="intel-tag region">${r}</span>`;
+                });
+
+                // Topic tags (max 2)
+                item.topics.slice(0, 2).forEach(t => {
+                    tagsHTML += `<span class="intel-tag topic">${t}</span>`;
+                });
+
+                const timeAgo = item.pubDate ? getRelativeTime(new Date(item.pubDate)) : '';
+
+                return `
+                    <div class="intel-item ${item.isPriority ? 'priority' : ''}">
+                        <div class="intel-header">
+                            <span class="intel-source">${item.source}</span>
+                            <div class="intel-tags">${tagsHTML}</div>
+                        </div>
+                        <a href="${item.link}" target="_blank" class="intel-title">${item.title}</a>
+                        <div class="intel-meta">
+                            <span>${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get relative time string
+        function getRelativeTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            if (days < 7) return `${days}d ago`;
+            return date.toLocaleDateString();
+        }
+
         // Render Layoffs panel
         function renderLayoffs(layoffs) {
             const panel = document.getElementById('layoffsPanel');
@@ -3266,7 +3546,7 @@
 
                 setStatus('Loading extras...', true);
 
-                // STAGE 3: Extra data (congress, whales, contracts, AI, layoffs, situations) - lowest priority
+                // STAGE 3: Extra data (congress, whales, contracts, AI, layoffs, situations, intel) - lowest priority
                 const stage3Promise = Promise.all([
                     isPanelEnabled('congress') ? fetchCongressTrades() : Promise.resolve([]),
                     isPanelEnabled('whales') ? fetchWhaleTransactions() : Promise.resolve([]),
@@ -3274,16 +3554,18 @@
                     isPanelEnabled('ai') ? fetchAINews() : Promise.resolve([]),
                     isPanelEnabled('layoffs') ? fetchLayoffs() : Promise.resolve([]),
                     isPanelEnabled('venezuela') ? fetchSituationNews('venezuela maduro caracas crisis') : Promise.resolve([]),
-                    isPanelEnabled('greenland') ? fetchSituationNews('greenland denmark trump arctic') : Promise.resolve([])
+                    isPanelEnabled('greenland') ? fetchSituationNews('greenland denmark trump arctic') : Promise.resolve([]),
+                    isPanelEnabled('intel') ? fetchIntelFeed() : Promise.resolve([])
                 ]);
 
-                const [congressTrades, whales, contracts, aiNews, layoffs, venezuelaNews, greenlandNews] = await stage3Promise;
+                const [congressTrades, whales, contracts, aiNews, layoffs, venezuelaNews, greenlandNews, intelFeed] = await stage3Promise;
 
                 if (isPanelEnabled('congress')) renderCongressTrades(congressTrades);
                 if (isPanelEnabled('whales')) renderWhaleWatch(whales);
                 if (isPanelEnabled('contracts')) renderGovContracts(contracts);
                 if (isPanelEnabled('ai')) renderAINews(aiNews);
                 if (isPanelEnabled('layoffs')) renderLayoffs(layoffs);
+                if (isPanelEnabled('intel')) renderIntelFeed(intelFeed);
                 if (isPanelEnabled('venezuela')) {
                     renderSituation('venezuelaPanel', 'venezuelaStatus', venezuelaNews, {
                         title: 'Venezuela Crisis',
